@@ -112,24 +112,64 @@ class Contrasena:
 
 @dataclass(frozen=True)
 class Cofre:
-    """Representa el resultado de una ronda del juego."""
+    """Clase base para los cofres del juego."""
 
     nombre: str
     puntos: int
     descripcion: str
 
+    def mensaje_apertura(self) -> str:
+        """Entrega una descripcion polimorfica del resultado del cofre."""
+        return self.descripcion
+
     @classmethod
     def aleatorio_valido(cls) -> "Cofre":
-        cofres = [
-            cls("Comun", 10, "Cofre basico abierto correctamente."),
-            cls("Raro", 25, "Cofre con recompensa superior."),
-            cls("Legendario", 50, "Cofre especial con maxima recompensa."),
-        ]
+        cofres: list[Cofre] = [CofreComun(), CofreRaro(), CofreLegendario()]
         return random.choice(cofres)
 
     @classmethod
     def maldito(cls) -> "Cofre":
-        return cls("Maldito", -20, "La contrasena fallo y activo una penalizacion.")
+        return CofreMaldito()
+
+
+class CofreComun(Cofre):
+    """Cofre basico que aplica una recompensa de diez puntos."""
+
+    def __init__(self) -> None:
+        super().__init__("Comun", 10, "Cofre basico abierto correctamente.")
+
+    def mensaje_apertura(self) -> str:
+        return "Abriste un cofre comun y obtuviste una recompensa basica."
+
+
+class CofreRaro(Cofre):
+    """Cofre con una recompensa superior."""
+
+    def __init__(self) -> None:
+        super().__init__("Raro", 25, "Cofre con recompensa superior.")
+
+    def mensaje_apertura(self) -> str:
+        return "Abriste un cofre raro y mejoraste tu puntaje."
+
+
+class CofreLegendario(Cofre):
+    """Cofre con la recompensa valida mas alta."""
+
+    def __init__(self) -> None:
+        super().__init__("Legendario", 50, "Cofre especial con maxima recompensa.")
+
+    def mensaje_apertura(self) -> str:
+        return "Abriste un cofre legendario y recibiste la maxima recompensa."
+
+
+class CofreMaldito(Cofre):
+    """Cofre que aplica la penalizacion solicitada por la guia."""
+
+    def __init__(self) -> None:
+        super().__init__("Maldito", -20, "La contrasena fallo y activo una penalizacion.")
+
+    def mensaje_apertura(self) -> str:
+        return "Se activo un cofre maldito por una entrada invalida."
 
 
 class JuegoCazador:
@@ -141,18 +181,18 @@ class JuegoCazador:
 
     def jugar_ronda(self, texto_longitud: str) -> dict[str, object]:
         self.rondas += 1
+        candidata = "No generada"
         try:
             generador = Contrasena.desde_texto(texto_longitud)
             candidata = generador.generar()
             generador.validar(candidata)
             cofre = Cofre.aleatorio_valido()
             estado = "valida"
-            mensaje = "La contrasena cumple todos los requisitos."
+            mensaje = cofre.mensaje_apertura()
         except ErrorJuego as exc:
-            candidata = "No generada" if not isinstance(exc, ContrasenaIncorrectaError) else candidata
             cofre = Cofre.maldito()
             estado = "invalida"
-            mensaje = str(exc)
+            mensaje = f"{cofre.mensaje_apertura()} {exc}"
 
         self.puntaje += cofre.puntos
         return {
@@ -164,31 +204,6 @@ class JuegoCazador:
             "puntaje_total": self.puntaje,
             "mensaje": mensaje,
         }
-
-    @staticmethod
-    def mostrar_resultado(resultado: dict[str, object]) -> None:
-        print(f"Ronda: {resultado['ronda']}")
-        print(f"Contrasena generada: {resultado['contrasena']}")
-        print(f"Estado: {resultado['estado']}")
-        print(f"Cofre obtenido: {resultado['cofre']}")
-        print(f"Puntos de la ronda: {resultado['puntos_ronda']}")
-        print(f"Puntaje acumulado: {resultado['puntaje_total']}")
-        print(f"Detalle: {resultado['mensaje']}")
-        print("-" * 50)
-
-    def iniciar(self) -> None:
-        print("=== Cazador de Contrasenas ===")
-        print("Genere contrasenas aleatorias para abrir cofres y acumular puntos.")
-        print("Digite 'salir' para terminar el juego.\n")
-
-        while True:
-            entrada = input("Longitud de la contrasena (minimo 8): ").strip()
-            if entrada.lower() == "salir":
-                print(f"Juego finalizado. Puntaje final: {self.puntaje}")
-                break
-            resultado = self.jugar_ronda(entrada)
-            self.mostrar_resultado(resultado)
-
 
 class InterfazCazador:
     """Interfaz grafica para jugar sin reemplazar la logica del dominio."""
@@ -208,6 +223,7 @@ class InterfazCazador:
         self.raiz.geometry("620x440")
         self.raiz.minsize(560, 400)
         self.raiz.configure(padx=24, pady=24)
+        self.raiz.columnconfigure(0, weight=1)
 
         ttk.Label(
             self.raiz,
@@ -251,13 +267,17 @@ class InterfazCazador:
             ),
             wraplength=540,
         ).grid(row=6, column=0, columnspan=3, sticky="w")
+        ttk.Button(self.raiz, text="Salir del juego", command=self.salir).grid(
+            row=7, column=0, columnspan=3, sticky="e", pady=(24, 0)
+        )
 
     def abrir_cofre(self, _evento: object | None = None) -> None:
         resultado = self.juego.jugar_ronda(self.longitud.get().strip())
         if resultado["estado"] == "valida":
             texto = (
                 f"Ronda {resultado['ronda']}: contrasena {resultado['contrasena']}. "
-                f"Cofre {resultado['cofre']} ({resultado['puntos_ronda']:+d} puntos)."
+                f"Cofre {resultado['cofre']} ({resultado['puntos_ronda']:+d} puntos). "
+                "Puedes abrir otro cofre o salir del juego."
             )
         else:
             texto = (
@@ -267,6 +287,10 @@ class InterfazCazador:
         self.resultado.set(texto)
         self.puntaje.set(f"Puntaje acumulado: {resultado['puntaje_total']}")
 
+    def salir(self) -> None:
+        """Cierra la sesion despues de que el jugador decide finalizar."""
+        self.raiz.destroy()
+
 
 def iniciar_interfaz_grafica() -> None:
     """Inicia la version visual solicitada para la socializacion del juego."""
@@ -275,20 +299,5 @@ def iniciar_interfaz_grafica() -> None:
     raiz.mainloop()
 
 
-def demo_controlada() -> None:
-    """Ejecuta rondas fijas para evidencia sin interaccion manual."""
-    random.seed(2026)
-    juego = JuegoCazador()
-    for entrada in ["abc", "5", "8", "12", "10"]:
-        resultado = juego.jugar_ronda(entrada)
-        juego.mostrar_resultado(resultado)
-
-
 if __name__ == "__main__":
-    modo = input("Seleccione modo: [1] grafico, [2] consola, [3] demo: ").strip()
-    if modo == "1":
-        iniciar_interfaz_grafica()
-    elif modo == "3":
-        demo_controlada()
-    else:
-        JuegoCazador().iniciar()
+    iniciar_interfaz_grafica()
