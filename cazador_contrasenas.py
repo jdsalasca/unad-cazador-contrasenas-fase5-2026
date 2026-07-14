@@ -1,37 +1,35 @@
-"""
-Curso: Programacion 213023 - Fase 5
-Estudiante: Juan David Salas Camargo
-Grupo: 213023_23
+"""Juego grafico Cazador de Contrasenas para la Fase 5 de Programacion.
 
-Juego: Cazador de Contrasenas
-
-El programa genera contrasenas aleatorias, valida requisitos de seguridad
-y asigna cofres con puntaje segun el resultado de cada ronda.
+La aplicacion usa una organizacion MVC dentro de un unico archivo fuente:
+el modelo aplica reglas y puntajes, la vista presenta Tkinter y el
+controlador conecta ambas capas sin mezclar sus responsabilidades.
 """
 
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
 import random
 import string
-from dataclasses import dataclass
 import tkinter as tk
 from tkinter import ttk
+from typing import Callable
 
 
 class ErrorJuego(Exception):
-    """Clase base para errores controlados del juego."""
+    """Clase base para los errores de dominio del juego."""
 
 
 class LongitudInvalidaError(ErrorJuego):
-    """Se lanza cuando la longitud no cumple las reglas del juego."""
+    """Se produce cuando la longitud no cumple el minimo permitido."""
 
 
 class DatoNoNumericoError(ErrorJuego):
-    """Se lanza cuando el usuario no digita un numero valido."""
+    """Se produce cuando la longitud no puede convertirse a un entero."""
 
 
 class ContrasenaIncorrectaError(ErrorJuego):
-    """Se lanza cuando una contrasena generada no supera la validacion."""
+    """Se produce cuando una contrasena no cumple las reglas de seguridad."""
 
 
 class Contrasena:
@@ -41,263 +39,351 @@ class Contrasena:
     MINUSCULAS = string.ascii_lowercase
     NUMEROS = string.digits
     ESPECIALES = "¿¡?=)(/¨*+-%&$#!."
-    MINIMA_LONGITUD = 8
+    LONGITUD_MINIMA = 8
 
     def __init__(self, longitud: int) -> None:
+        """Crea una solicitud de generacion y valida su longitud."""
         self.longitud = longitud
         self._validar_longitud()
 
     @classmethod
-    def desde_texto(cls, texto: str) -> "Contrasena":
-        """Construye una contrasena a partir de la entrada del usuario."""
+    def desde_longitud_texto(cls, texto_longitud: str) -> "Contrasena":
+        """Convierte el dato de la interfaz en una solicitud valida."""
         try:
-            longitud = int(texto)
+            longitud = int(texto_longitud)
         except ValueError as exc:
-            raise DatoNoNumericoError("La longitud debe ser un numero entero.") from exc
+            raise DatoNoNumericoError(
+                "La longitud debe ser un numero entero."
+            ) from exc
         return cls(longitud)
 
     @property
-    def caracteres_disponibles(self) -> str:
-        return self.MAYUSCULAS + self.MINUSCULAS + self.NUMEROS + self.ESPECIALES
+    def caracteres_unicos(self) -> tuple[str, ...]:
+        """Devuelve el alfabeto permitido sin duplicados."""
+        caracteres = self.MAYUSCULAS + self.MINUSCULAS + self.NUMEROS + self.ESPECIALES
+        return tuple(dict.fromkeys(caracteres))
 
-    @property
-    def caracteres_unicos(self) -> list[str]:
-        return list(dict.fromkeys(self.caracteres_disponibles))
+    def generar(self, aleatorio: random.Random) -> str:
+        """Genera una contrasena valida con orden aleatorio impredecible."""
+        obligatorios = [
+            aleatorio.choice(self.MAYUSCULAS),
+            aleatorio.choice(self.MINUSCULAS),
+            aleatorio.choice(self.NUMEROS),
+            aleatorio.choice(self.ESPECIALES),
+        ]
+        disponibles = [
+            caracter
+            for caracter in self.caracteres_unicos
+            if caracter not in obligatorios
+        ]
+        seleccion = obligatorios + aleatorio.sample(
+            disponibles, self.longitud - len(obligatorios)
+        )
+        aleatorio.shuffle(seleccion)
+        contrasena = "".join(seleccion)
+        self.validar(contrasena)
+        return contrasena
+
+    def validar(self, valor: str) -> None:
+        """Comprueba todas las condiciones solicitadas por la guia."""
+        errores: list[str] = []
+
+        if len(valor) != self.longitud:
+            errores.append("no coincide con la longitud solicitada")
+        if len(valor) < self.LONGITUD_MINIMA:
+            errores.append("no cumple la longitud minima")
+        if not any(caracter in self.MAYUSCULAS for caracter in valor):
+            errores.append("no contiene una mayuscula")
+        if not any(caracter in self.MINUSCULAS for caracter in valor):
+            errores.append("no contiene una minuscula")
+        if not any(caracter in self.NUMEROS for caracter in valor):
+            errores.append("no contiene un numero")
+        if not any(caracter in self.ESPECIALES for caracter in valor):
+            errores.append("no contiene un caracter especial permitido")
+        if len(set(valor)) != len(valor):
+            errores.append("contiene caracteres repetidos")
+
+        if errores:
+            raise ContrasenaIncorrectaError(
+                f"Contrasena invalida: {'; '.join(errores)}."
+            )
 
     def _validar_longitud(self) -> None:
-        if self.longitud < self.MINIMA_LONGITUD:
+        """Verifica limites que dependen del alfabeto disponible."""
+        if self.longitud < self.LONGITUD_MINIMA:
             raise LongitudInvalidaError(
-                f"La longitud minima permitida es {self.MINIMA_LONGITUD} caracteres."
+                f"La longitud minima permitida es {self.LONGITUD_MINIMA}."
             )
         if self.longitud > len(self.caracteres_unicos):
             raise LongitudInvalidaError(
-                "La longitud supera la cantidad de caracteres unicos disponibles."
+                "La longitud supera los caracteres unicos disponibles."
             )
-
-    def generar(self) -> str:
-        """Genera una contrasena aleatoria valida sin repetir caracteres."""
-        obligatorios = [
-            random.choice(self.MAYUSCULAS),
-            random.choice(self.MINUSCULAS),
-            random.choice(self.NUMEROS),
-            random.choice(self.ESPECIALES),
-        ]
-        disponibles = [char for char in self.caracteres_unicos if char not in obligatorios]
-        faltantes = self.longitud - len(obligatorios)
-        seleccion = obligatorios + random.sample(disponibles, faltantes)
-        random.shuffle(seleccion)
-        return "".join(seleccion)
-
-    def validar(self, valor: str) -> None:
-        """Valida todas las condiciones obligatorias de la guia."""
-        errores: list[str] = []
-
-        if len(valor) < self.MINIMA_LONGITUD:
-            errores.append("no cumple la longitud minima")
-        if not any(char in self.MAYUSCULAS for char in valor):
-            errores.append("no contiene letra mayuscula")
-        if not any(char in self.MINUSCULAS for char in valor):
-            errores.append("no contiene letra minuscula")
-        if not any(char in self.NUMEROS for char in valor):
-            errores.append("no contiene numero")
-        if not any(char in self.ESPECIALES for char in valor):
-            errores.append("no contiene caracter especial permitido")
-        if len(set(valor)) != len(valor):
-            errores.append("tiene caracteres repetidos")
-
-        if errores:
-            detalle = "; ".join(errores)
-            raise ContrasenaIncorrectaError(f"Contrasena invalida: {detalle}.")
 
 
 @dataclass(frozen=True)
-class Cofre:
-    """Clase base para los cofres del juego."""
+class Cofre(ABC):
+    """Contrato comun para los cofres y sus efectos de puntaje."""
 
     nombre: str
     puntos: int
-    descripcion: str
 
+    @abstractmethod
     def mensaje_apertura(self) -> str:
-        """Entrega una descripcion polimorfica del resultado del cofre."""
-        return self.descripcion
-
-    @classmethod
-    def aleatorio_valido(cls) -> "Cofre":
-        cofres: list[Cofre] = [CofreComun(), CofreRaro(), CofreLegendario()]
-        return random.choice(cofres)
-
-    @classmethod
-    def maldito(cls) -> "Cofre":
-        return CofreMaldito()
+        """Describe el efecto del cofre para presentarlo al jugador."""
 
 
 class CofreComun(Cofre):
-    """Cofre basico que aplica una recompensa de diez puntos."""
+    """Cofre basico con recompensa de diez puntos."""
 
     def __init__(self) -> None:
-        super().__init__("Comun", 10, "Cofre basico abierto correctamente.")
+        super().__init__("Comun", 10)
 
     def mensaje_apertura(self) -> str:
-        return "Abriste un cofre comun y obtuviste una recompensa basica."
+        """Devuelve el mensaje de una recompensa comun."""
+        return "Abriste un cofre comun y recibiste una recompensa basica."
 
 
 class CofreRaro(Cofre):
-    """Cofre con una recompensa superior."""
+    """Cofre de recompensa intermedia."""
 
     def __init__(self) -> None:
-        super().__init__("Raro", 25, "Cofre con recompensa superior.")
+        super().__init__("Raro", 25)
 
     def mensaje_apertura(self) -> str:
+        """Devuelve el mensaje de una recompensa rara."""
         return "Abriste un cofre raro y mejoraste tu puntaje."
 
 
 class CofreLegendario(Cofre):
-    """Cofre con la recompensa valida mas alta."""
+    """Cofre de mayor recompensa valida."""
 
     def __init__(self) -> None:
-        super().__init__("Legendario", 50, "Cofre especial con maxima recompensa.")
+        super().__init__("Legendario", 50)
 
     def mensaje_apertura(self) -> str:
-        return "Abriste un cofre legendario y recibiste la maxima recompensa."
+        """Devuelve el mensaje de una recompensa legendaria."""
+        return "Abriste un cofre legendario y obtuviste la maxima recompensa."
 
 
 class CofreMaldito(Cofre):
-    """Cofre que aplica la penalizacion solicitada por la guia."""
+    """Cofre de penalizacion para entradas o contrasenas invalidas."""
 
     def __init__(self) -> None:
-        super().__init__("Maldito", -20, "La contrasena fallo y activo una penalizacion.")
+        super().__init__("Maldito", -20)
 
     def mensaje_apertura(self) -> str:
+        """Devuelve el mensaje de una penalizacion."""
         return "Se activo un cofre maldito por una entrada invalida."
 
 
+class FabricaCofres:
+    """Selecciona el cofre apropiado sin exponer la aleatoriedad al controlador."""
+
+    def __init__(self, aleatorio: random.Random) -> None:
+        """Recibe la fuente de aleatoriedad compartida por el modelo."""
+        self._aleatorio = aleatorio
+
+    def crear_cofre_valido(self) -> Cofre:
+        """Crea un cofre positivo seleccionado al azar."""
+        return self._aleatorio.choice(
+            [CofreComun(), CofreRaro(), CofreLegendario()]
+        )
+
+    def crear_cofre_maldito(self) -> Cofre:
+        """Crea el cofre de penalizacion definido por la guia."""
+        return CofreMaldito()
+
+
+@dataclass(frozen=True)
+class ResultadoRonda:
+    """Representa la informacion completa que la vista debe mostrar."""
+
+    numero_ronda: int
+    contrasena_generada: str
+    estado: str
+    cofre: Cofre
+    puntaje_total: int
+    detalle: str
+
+
 class JuegoCazador:
-    """Controla el flujo, el puntaje y las rondas del juego."""
+    """Modelo que controla rondas, contrasenas, cofres y puntaje acumulado."""
 
-    def __init__(self) -> None:
-        self.puntaje = 0
-        self.rondas = 0
+    def __init__(self, aleatorio: random.Random | None = None) -> None:
+        """Inicializa una partida independiente con puntaje igual a cero."""
+        self._aleatorio = aleatorio or random.Random()
+        self._fabrica_cofres = FabricaCofres(self._aleatorio)
+        self._puntaje = 0
+        self._rondas = 0
 
-    def jugar_ronda(self, texto_longitud: str) -> dict[str, object]:
-        self.rondas += 1
-        candidata = "No generada"
+    @property
+    def puntaje(self) -> int:
+        """Expone el puntaje actual sin permitir modificarlo desde fuera."""
+        return self._puntaje
+
+    def jugar_ronda(self, texto_longitud: str) -> ResultadoRonda:
+        """Genera, valida y califica una ronda a partir de una longitud textual."""
+        self._rondas += 1
+        contrasena_generada = "No generada"
         try:
-            generador = Contrasena.desde_texto(texto_longitud)
-            candidata = generador.generar()
-            generador.validar(candidata)
-            cofre = Cofre.aleatorio_valido()
+            solicitud = Contrasena.desde_longitud_texto(texto_longitud.strip())
+            contrasena_generada = solicitud.generar(self._aleatorio)
+            cofre = self._fabrica_cofres.crear_cofre_valido()
             estado = "valida"
-            mensaje = cofre.mensaje_apertura()
-        except ErrorJuego as exc:
-            cofre = Cofre.maldito()
+            detalle = cofre.mensaje_apertura()
+        except ErrorJuego as error:
+            cofre = self._fabrica_cofres.crear_cofre_maldito()
             estado = "invalida"
-            mensaje = f"{cofre.mensaje_apertura()} {exc}"
+            detalle = f"{cofre.mensaje_apertura()} {error}"
 
-        self.puntaje += cofre.puntos
-        return {
-            "ronda": self.rondas,
-            "contrasena": candidata,
-            "estado": estado,
-            "cofre": cofre.nombre,
-            "puntos_ronda": cofre.puntos,
-            "puntaje_total": self.puntaje,
-            "mensaje": mensaje,
-        }
+        self._puntaje += cofre.puntos
+        return ResultadoRonda(
+            numero_ronda=self._rondas,
+            contrasena_generada=contrasena_generada,
+            estado=estado,
+            cofre=cofre,
+            puntaje_total=self._puntaje,
+            detalle=detalle,
+        )
 
-class InterfazCazador:
-    """Interfaz grafica para jugar sin reemplazar la logica del dominio."""
+
+class VistaCazador:
+    """Vista Tkinter: solo muestra datos y delega acciones al controlador."""
 
     def __init__(self, raiz: tk.Tk) -> None:
-        self.raiz = raiz
-        self.juego = JuegoCazador()
-        self.longitud = tk.StringVar(value="8")
-        self.resultado = tk.StringVar(
-            value="Elija una longitud y abra su primer cofre."
+        """Construye los controles visuales y sus variables de presentacion."""
+        self._raiz = raiz
+        self._longitud = tk.StringVar(value="8")
+        self._resultado = tk.StringVar(
+            value="Define una longitud y abre tu primer cofre."
         )
-        self.puntaje = tk.StringVar(value="Puntaje acumulado: 0")
+        self._puntaje = tk.StringVar(value="Puntaje acumulado: 0")
         self._crear_componentes()
 
-    def _crear_componentes(self) -> None:
-        self.raiz.title("Cazador de Contrasenas")
-        self.raiz.geometry("620x440")
-        self.raiz.minsize(560, 400)
-        self.raiz.configure(padx=24, pady=24)
-        self.raiz.columnconfigure(0, weight=1)
+    def configurar_acciones(
+        self,
+        al_abrir_cofre: Callable[[], None],
+        al_salir: Callable[[], None],
+    ) -> None:
+        """Conecta los eventos de la vista con los casos de uso del controlador."""
+        self._boton_abrir.configure(command=al_abrir_cofre)
+        self._boton_salir.configure(command=al_salir)
+        self._entrada.bind("<Return>", lambda _evento: al_abrir_cofre())
 
-        ttk.Label(
-            self.raiz,
-            text="Cazador de Contrasenas",
-            font=("Arial", 18, "bold"),
-        ).grid(row=0, column=0, columnspan=3, sticky="w")
-        ttk.Label(
-            self.raiz,
-            text=(
-                "Tu defines la longitud; el juego genera y valida la contrasena aleatoria."
-            ),
-            wraplength=540,
-        ).grid(row=1, column=0, columnspan=3, sticky="w", pady=(8, 22))
+    def obtener_longitud(self) -> str:
+        """Obtiene el unico dato que el usuario entrega al juego."""
+        return self._longitud.get()
 
-        ttk.Label(self.raiz, text="Longitud que deseas generar (minimo 8):").grid(
-            row=2, column=0, sticky="w"
-        )
-        entrada = ttk.Entry(self.raiz, textvariable=self.longitud, width=12)
-        entrada.grid(row=2, column=1, sticky="w", padx=(12, 12))
-        entrada.focus()
-        entrada.bind("<Return>", self.abrir_cofre)
-        ttk.Button(self.raiz, text="Abrir cofre", command=self.abrir_cofre).grid(
-            row=2, column=2, sticky="w"
-        )
-
-        ttk.Separator(self.raiz, orient="horizontal").grid(
-            row=3, column=0, columnspan=3, sticky="ew", pady=22
-        )
-        ttk.Label(self.raiz, textvariable=self.resultado, wraplength=540).grid(
-            row=4, column=0, columnspan=3, sticky="w"
-        )
-        ttk.Label(
-            self.raiz,
-            textvariable=self.puntaje,
-            font=("Arial", 11, "bold"),
-        ).grid(row=5, column=0, columnspan=3, sticky="w", pady=(20, 8))
-        ttk.Label(
-            self.raiz,
-            text=(
-                "Reglas: mayuscula, minuscula, numero, caracter especial y sin repetir caracteres."
-            ),
-            wraplength=540,
-        ).grid(row=6, column=0, columnspan=3, sticky="w")
-        ttk.Button(self.raiz, text="Salir del juego", command=self.salir).grid(
-            row=7, column=0, columnspan=3, sticky="e", pady=(24, 0)
-        )
-
-    def abrir_cofre(self, _evento: object | None = None) -> None:
-        resultado = self.juego.jugar_ronda(self.longitud.get().strip())
-        if resultado["estado"] == "valida":
+    def mostrar_resultado(self, resultado: ResultadoRonda) -> None:
+        """Actualiza la interfaz con la informacion de la ronda procesada."""
+        if resultado.estado == "valida":
             texto = (
-                f"Ronda {resultado['ronda']}: contrasena {resultado['contrasena']}. "
-                f"Cofre {resultado['cofre']} ({resultado['puntos_ronda']:+d} puntos). "
-                "Puedes abrir otro cofre o salir del juego."
+                f"Ronda {resultado.numero_ronda}: contrasena generada: "
+                f"{resultado.contrasena_generada}. Cofre {resultado.cofre.nombre} "
+                f"({resultado.cofre.puntos:+d} puntos). {resultado.detalle}"
             )
         else:
             texto = (
-                f"Ronda {resultado['ronda']}: cofre {resultado['cofre']} "
-                f"({resultado['puntos_ronda']:+d} puntos). {resultado['mensaje']}"
+                f"Ronda {resultado.numero_ronda}: Cofre {resultado.cofre.nombre} "
+                f"({resultado.cofre.puntos:+d} puntos). {resultado.detalle}"
             )
-        self.resultado.set(texto)
-        self.puntaje.set(f"Puntaje acumulado: {resultado['puntaje_total']}")
+        self._resultado.set(texto)
+        self._puntaje.set(f"Puntaje acumulado: {resultado.puntaje_total}")
+
+    def iniciar_bucle(self) -> None:
+        """Entrega el control del programa al ciclo de eventos de Tkinter."""
+        self._raiz.mainloop()
+
+    def cerrar(self) -> None:
+        """Cierra la ventana cuando el jugador decide terminar."""
+        self._raiz.destroy()
+
+    def _crear_componentes(self) -> None:
+        """Configura la composicion estable de la interfaz grafica."""
+        self._raiz.title("Cazador de Contrasenas")
+        self._raiz.geometry("680x460")
+        self._raiz.minsize(620, 420)
+        self._raiz.configure(padx=28, pady=28)
+        self._raiz.columnconfigure(0, weight=1)
+
+        ttk.Label(
+            self._raiz,
+            text="Cazador de Contrasenas",
+            font=("Arial", 20, "bold"),
+        ).grid(row=0, column=0, columnspan=3, sticky="w")
+        ttk.Label(
+            self._raiz,
+            text="Tu defines la longitud; el juego genera y valida la contrasena aleatoria.",
+            wraplength=600,
+        ).grid(row=1, column=0, columnspan=3, sticky="w", pady=(8, 24))
+
+        ttk.Label(self._raiz, text="Longitud que deseas generar (minimo 8):").grid(
+            row=2, column=0, sticky="w"
+        )
+        self._entrada = ttk.Entry(self._raiz, textvariable=self._longitud, width=12)
+        self._entrada.grid(row=2, column=1, sticky="w", padx=12)
+        self._boton_abrir = ttk.Button(self._raiz, text="Abrir cofre")
+        self._boton_abrir.grid(row=2, column=2, sticky="w")
+
+        ttk.Separator(self._raiz, orient="horizontal").grid(
+            row=3, column=0, columnspan=3, sticky="ew", pady=24
+        )
+        ttk.Label(
+            self._raiz,
+            textvariable=self._resultado,
+            wraplength=600,
+            justify="left",
+        ).grid(row=4, column=0, columnspan=3, sticky="w")
+        ttk.Label(
+            self._raiz,
+            textvariable=self._puntaje,
+            font=("Arial", 11, "bold"),
+        ).grid(row=5, column=0, columnspan=3, sticky="w", pady=(20, 8))
+        ttk.Label(
+            self._raiz,
+            text="Reglas: mayuscula, minuscula, numero, caracter especial y sin repetir caracteres.",
+            wraplength=600,
+        ).grid(row=6, column=0, columnspan=3, sticky="w")
+        self._boton_salir = ttk.Button(self._raiz, text="Salir del juego")
+        self._boton_salir.grid(row=7, column=0, columnspan=3, sticky="e", pady=(24, 0))
+
+
+class ControladorCazador:
+    """Coordina la vista y el modelo sin incluir reglas de dominio propias."""
+
+    def __init__(self, juego: JuegoCazador, vista: VistaCazador) -> None:
+        """Recibe las dependencias y registra los eventos de la interfaz."""
+        self._juego = juego
+        self._vista = vista
+        self._vista.configurar_acciones(self.abrir_cofre, self.salir)
+
+    def abrir_cofre(self) -> None:
+        """Procesa una ronda a partir de la longitud solicitada en la vista."""
+        resultado = self._juego.jugar_ronda(self._vista.obtener_longitud())
+        self._vista.mostrar_resultado(resultado)
 
     def salir(self) -> None:
-        """Cierra la sesion despues de que el jugador decide finalizar."""
-        self.raiz.destroy()
+        """Finaliza la sesion grafica solicitada por el jugador."""
+        self._vista.cerrar()
+
+    def iniciar(self) -> None:
+        """Inicia el ciclo grafico sin exponer detalles internos de la vista."""
+        self._vista.iniciar_bucle()
 
 
-def iniciar_interfaz_grafica() -> None:
-    """Inicia la version visual solicitada para la socializacion del juego."""
+def crear_aplicacion() -> ControladorCazador:
+    """Compone las capas MVC y devuelve el controlador de la aplicacion."""
     raiz = tk.Tk()
-    InterfazCazador(raiz)
-    raiz.mainloop()
+    vista = VistaCazador(raiz)
+    juego = JuegoCazador()
+    return ControladorCazador(juego, vista)
+
+
+def iniciar_aplicacion() -> None:
+    """Inicia la unica experiencia disponible: el juego grafico."""
+    aplicacion = crear_aplicacion()
+    aplicacion.iniciar()
 
 
 if __name__ == "__main__":
-    iniciar_interfaz_grafica()
+    iniciar_aplicacion()

@@ -1,19 +1,22 @@
 # Cazador de Contraseñas
 
-Implementación individual para la Fase 5 del curso Programación (213023), UNAD.
+Implementacion individual para la Fase 5 del curso Programacion (213023), UNAD.
 
-El juego permite generar contraseñas aleatorias y abrir cofres de acuerdo con la validez de cada ronda. Fue construido con Python y programación orientada a objetos.
+El juego genera contrasenas aleatorias y abre cofres segun la validez de cada
+ronda. Fue construido con Python, programacion orientada a objetos y una
+arquitectura MVC sencilla, adecuada para mantener separadas las reglas del
+juego, la interfaz y el flujo de interaccion.
 
 ## Requisitos que cubre
 
-- Longitud definida por el usuario, con mínimo de 8 caracteres.
-- Al menos una letra mayúscula, una minúscula, un número y un carácter especial permitido.
+- Longitud definida por el usuario, con minimo de 8 caracteres.
+- Al menos una letra mayuscula, una minuscula, un numero y un caracter especial permitido.
 - Ausencia de caracteres repetidos.
-- Cofres común, raro, legendario y maldito, con puntajes distintos.
+- Cofres comun, raro, legendario y maldito, con puntajes distintos.
 - Varias rondas de juego y puntaje acumulado.
-- Excepciones personalizadas para datos no numéricos, longitudes inválidas y contraseñas incorrectas.
-- Interfaz gráfica única para abrir cofres, consultar el resultado y finalizar la sesión.
-- Herencia y polimorfismo mediante los cofres especializado: común, raro, legendario y maldito.
+- Excepciones personalizadas para datos no numericos, longitudes invalidas y contrasenas incorrectas.
+- Interfaz grafica unica para abrir cofres, consultar el resultado y finalizar la sesion.
+- Herencia y polimorfismo mediante los cofres especializado: comun, raro, legendario y maldito.
 
 ## Ejecución
 
@@ -21,7 +24,10 @@ El juego permite generar contraseñas aleatorias y abrir cofres de acuerdo con l
 py cazador_contrasenas.py
 ```
 
-Al ejecutar el archivo se abre directamente la interfaz gráfica. El usuario solo indica la longitud que desea generar; el programa crea y valida la contraseña aleatoria. Luego puede abrir tantas rondas como necesite y finalizar mediante el botón `Salir del juego`.
+Al ejecutar el archivo se abre directamente la interfaz grafica. El usuario solo
+indica la longitud que desea generar; el programa crea y valida la contrasena
+aleatoria. Luego puede abrir tantas rondas como necesite y finalizar mediante el
+boton `Salir del juego`.
 
 ## Pruebas
 
@@ -29,15 +35,24 @@ Al ejecutar el archivo se abre directamente la interfaz gráfica. El usuario sol
 py -m unittest discover -s tests -v
 ```
 
-Las pruebas verifican las reglas de contraseña, las excepciones, los puntajes, las rondas acumuladas y la jerarquía de cofres.
+Las pruebas verifican las reglas de contrasena, las excepciones, los puntajes,
+las rondas acumuladas, la jerarquia de cofres y la coordinacion entre
+controlador, modelo y vista mediante un doble de prueba.
 
-## Estructura orientada a objetos
+## Arquitectura MVC y POO
 
-- `Contrasena`: genera y valida contraseñas.
-- `Cofre`: clase base de los resultados posibles de una ronda.
-- `CofreComun`, `CofreRaro`, `CofreLegendario` y `CofreMaldito`: especializan el comportamiento de cada cofre.
-- `JuegoCazador`: administra rondas, puntaje y manejo controlado de errores.
-- `InterfazCazador`: presenta la interacción gráfica del jugador.
+- **Modelo:** `Contrasena`, `Cofre`, `CofreComun`, `CofreRaro`,
+  `CofreLegendario`, `CofreMaldito`, `FabricaCofres`, `ResultadoRonda` y
+  `JuegoCazador`. Esta capa contiene las reglas, las excepciones, la
+  aleatoriedad inyectable y el puntaje acumulado.
+- **Vista:** `VistaCazador`. Construye la interfaz Tkinter y solo presenta datos
+  o recibe la longitud solicitada por el jugador.
+- **Controlador:** `ControladorCazador`. Coordina las acciones de la vista con
+  el modelo; no conoce reglas de contrasenas ni calcula puntajes.
+
+El codigo incluye docstrings en clases y metodos publicos para facilitar la
+lectura durante la sustentacion. `FabricaCofres` concentra la creacion de los
+cofres y evita que el controlador dependa de sus implementaciones concretas.
 
 ## Nota académica
 
