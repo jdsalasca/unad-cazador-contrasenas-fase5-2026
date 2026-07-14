@@ -11,21 +11,33 @@ El juego permite generar contraseñas aleatorias y abrir cofres de acuerdo con l
 - Ausencia de caracteres repetidos.
 - Cofres común, raro, legendario y maldito, con puntajes distintos.
 - Varias rondas de juego y puntaje acumulado.
-- Excepciones personalizadas para datos no numéricos y longitudes inválidas.
+- Excepciones personalizadas para datos no numéricos, longitudes inválidas y contraseñas incorrectas.
+- Interfaz gráfica única para abrir cofres, consultar el resultado y finalizar la sesión.
+- Herencia y polimorfismo mediante los cofres especializado: común, raro, legendario y maldito.
 
 ## Ejecución
 
 ```powershell
-python cazador_contrasenas.py
+py cazador_contrasenas.py
 ```
 
-Al iniciar, puede elegirse una demostración automatizada con casos válidos e inválidos, o jugar manualmente indicando la longitud de cada contraseña.
+Al ejecutar el archivo se abre directamente la interfaz gráfica. El usuario indica la longitud, abre tantas rondas como necesite y puede finalizar mediante el botón `Salir del juego`.
+
+## Pruebas
+
+```powershell
+py -m unittest discover -s tests -v
+```
+
+Las pruebas verifican las reglas de contraseña, las excepciones, los puntajes, las rondas acumuladas y la jerarquía de cofres.
 
 ## Estructura orientada a objetos
 
 - `Contrasena`: genera y valida contraseñas.
-- `Cofre`: representa los resultados posibles de una ronda.
+- `Cofre`: clase base de los resultados posibles de una ronda.
+- `CofreComun`, `CofreRaro`, `CofreLegendario` y `CofreMaldito`: especializan el comportamiento de cada cofre.
 - `JuegoCazador`: administra rondas, puntaje y manejo controlado de errores.
+- `InterfazCazador`: presenta la interacción gráfica del jugador.
 
 ## Nota académica
 
