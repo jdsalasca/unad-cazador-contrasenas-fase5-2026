@@ -233,12 +233,12 @@ class InterfazCazador:
         ttk.Label(
             self.raiz,
             text=(
-                "Genere una contrasena valida para abrir cofres y acumular puntos."
+                "Tu defines la longitud; el juego genera y valida la contrasena aleatoria."
             ),
             wraplength=540,
         ).grid(row=1, column=0, columnspan=3, sticky="w", pady=(8, 22))
 
-        ttk.Label(self.raiz, text="Longitud (minimo 8):").grid(
+        ttk.Label(self.raiz, text="Longitud que deseas generar (minimo 8):").grid(
             row=2, column=0, sticky="w"
         )
         entrada = ttk.Entry(self.raiz, textvariable=self.longitud, width=12)

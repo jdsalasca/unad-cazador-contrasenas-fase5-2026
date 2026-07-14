@@ -21,7 +21,7 @@ El juego permite generar contraseñas aleatorias y abrir cofres de acuerdo con l
 py cazador_contrasenas.py
 ```
 
-Al ejecutar el archivo se abre directamente la interfaz gráfica. El usuario indica la longitud, abre tantas rondas como necesite y puede finalizar mediante el botón `Salir del juego`.
+Al ejecutar el archivo se abre directamente la interfaz gráfica. El usuario solo indica la longitud que desea generar; el programa crea y valida la contraseña aleatoria. Luego puede abrir tantas rondas como necesite y finalizar mediante el botón `Salir del juego`.
 
 ## Pruebas
 
