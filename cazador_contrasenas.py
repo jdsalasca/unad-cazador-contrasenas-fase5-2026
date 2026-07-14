@@ -14,6 +14,8 @@ from __future__ import annotations
 import random
 import string
 from dataclasses import dataclass
+import tkinter as tk
+from tkinter import ttk
 
 
 class ErrorJuego(Exception):
@@ -188,6 +190,91 @@ class JuegoCazador:
             self.mostrar_resultado(resultado)
 
 
+class InterfazCazador:
+    """Interfaz grafica para jugar sin reemplazar la logica del dominio."""
+
+    def __init__(self, raiz: tk.Tk) -> None:
+        self.raiz = raiz
+        self.juego = JuegoCazador()
+        self.longitud = tk.StringVar(value="8")
+        self.resultado = tk.StringVar(
+            value="Elija una longitud y abra su primer cofre."
+        )
+        self.puntaje = tk.StringVar(value="Puntaje acumulado: 0")
+        self._crear_componentes()
+
+    def _crear_componentes(self) -> None:
+        self.raiz.title("Cazador de Contrasenas")
+        self.raiz.geometry("620x440")
+        self.raiz.minsize(560, 400)
+        self.raiz.configure(padx=24, pady=24)
+
+        ttk.Label(
+            self.raiz,
+            text="Cazador de Contrasenas",
+            font=("Arial", 18, "bold"),
+        ).grid(row=0, column=0, columnspan=3, sticky="w")
+        ttk.Label(
+            self.raiz,
+            text=(
+                "Genere una contrasena valida para abrir cofres y acumular puntos."
+            ),
+            wraplength=540,
+        ).grid(row=1, column=0, columnspan=3, sticky="w", pady=(8, 22))
+
+        ttk.Label(self.raiz, text="Longitud (minimo 8):").grid(
+            row=2, column=0, sticky="w"
+        )
+        entrada = ttk.Entry(self.raiz, textvariable=self.longitud, width=12)
+        entrada.grid(row=2, column=1, sticky="w", padx=(12, 12))
+        entrada.focus()
+        entrada.bind("<Return>", self.abrir_cofre)
+        ttk.Button(self.raiz, text="Abrir cofre", command=self.abrir_cofre).grid(
+            row=2, column=2, sticky="w"
+        )
+
+        ttk.Separator(self.raiz, orient="horizontal").grid(
+            row=3, column=0, columnspan=3, sticky="ew", pady=22
+        )
+        ttk.Label(self.raiz, textvariable=self.resultado, wraplength=540).grid(
+            row=4, column=0, columnspan=3, sticky="w"
+        )
+        ttk.Label(
+            self.raiz,
+            textvariable=self.puntaje,
+            font=("Arial", 11, "bold"),
+        ).grid(row=5, column=0, columnspan=3, sticky="w", pady=(20, 8))
+        ttk.Label(
+            self.raiz,
+            text=(
+                "Reglas: mayuscula, minuscula, numero, caracter especial y sin repetir caracteres."
+            ),
+            wraplength=540,
+        ).grid(row=6, column=0, columnspan=3, sticky="w")
+
+    def abrir_cofre(self, _evento: object | None = None) -> None:
+        resultado = self.juego.jugar_ronda(self.longitud.get().strip())
+        if resultado["estado"] == "valida":
+            texto = (
+                f"Ronda {resultado['ronda']}: contrasena {resultado['contrasena']}. "
+                f"Cofre {resultado['cofre']} ({resultado['puntos_ronda']:+d} puntos)."
+            )
+        else:
+            texto = (
+                f"Ronda {resultado['ronda']}: cofre {resultado['cofre']} "
+                f"({resultado['puntos_ronda']:+d} puntos). {resultado['mensaje']}"
+            )
+        self.resultado.set(texto)
+        self.puntaje.set(f"Puntaje acumulado: {resultado['puntaje_total']}")
+
+
+def iniciar_interfaz_grafica() -> None:
+    """Inicia la version visual solicitada para la socializacion del juego."""
+    raiz = tk.Tk()
+    InterfazCazador(raiz)
+    raiz.mainloop()
+
+
 def demo_controlada() -> None:
     """Ejecuta rondas fijas para evidencia sin interaccion manual."""
     random.seed(2026)
@@ -198,8 +285,10 @@ def demo_controlada() -> None:
 
 
 if __name__ == "__main__":
-    iniciar_demo = input("¿Desea ejecutar demo automatica? (s/n): ").strip().lower()
-    if iniciar_demo == "s":
+    modo = input("Seleccione modo: [1] grafico, [2] consola, [3] demo: ").strip()
+    if modo == "1":
+        iniciar_interfaz_grafica()
+    elif modo == "3":
         demo_controlada()
     else:
         JuegoCazador().iniciar()
